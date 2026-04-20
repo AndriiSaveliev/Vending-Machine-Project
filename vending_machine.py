@@ -3,24 +3,37 @@ class VendingMachine:
     Main controller that connects all modules.
     """
     admin_mode = False
+    messages = []
+
+    def to_money(self, cents):
+        """Formats integer cents into string dollars E.g. 250 becomes $2.50"""
+        dollars = cents / 100
+        return f"${dollars:,.2f}"
 
     def __init__(self, money_handler, product_handler):
         self.money_handler = money_handler
         self.product_handler = product_handler
         self.max_price = 300  # hard coded for testing. Later will use max product price rounded up.
         self.admin_mode = False
-
+    
     def insert_coin(self, cents):
         """Pass coin to MoneyHandler, along with max_price"""
         self.money_handler.insert_coin(cents, self.max_price)
-        self.display(f"Balance:{self.money_format(self.money_handler.get_balance())}")
+        self.display(f"Balance:{self.to_money(self.money_handler.get_balance())}")
 
     def display(self, text):
         print(text)
+        self.messages.append(text)
+        if len(self.messages) > 50:  # limit to last 50 messages
+            del self.messages[0]
 
-    def to_money(value):
-        """Formats integer cents into string dollars E.g. 250 becomes $2.50"""
-        return f"${value:,.2f}"
+    def get_messages(self):
+        """For use with an external UI, returns list of all messages (up to limit)."""
+        return self.messages
+    
+    def clear_messages(self):
+        """For use with an external UI, clears list of messages."""
+        self.messages = []
     
     def vend_product(self, slot):
         """Handle purchase flow"""
