@@ -53,7 +53,7 @@ class VendingMachine:
                 try:
                     ph.vend(slot)
                     vend_success = True  # if reaches this line, vend worked.
-                except JammedSlotError:  # handle jammed slot here
+                except ph.JammedSlotError as e:  # handle jammed slot here
                     disp("Vend failed")
                 if vend_success:
                     if balance > price:
@@ -64,7 +64,7 @@ class VendingMachine:
                     self.update_sales_report(slot, "name", price)  # save to file
             else: # balance is not enough
                 remaining = price - balance
-                disp(f"Deposit {self.to_money(remaining)} more."
+                disp(f"Deposit {self.to_money(remaining)} more.")
 
     def coin_return(self):
         """Return coins"""
@@ -116,4 +116,3 @@ class VendingMachine:
             self.product_handler.diable_slot(slot)
         except InvalidSlotError:
             self.display("Slot invalid")
-            

@@ -18,6 +18,7 @@ class ProductHandler:
     Tracks product slots, prices, quantities, and slot status.
     All prices are stored in cents.
     """
+    max_value_cents = 200
 
     def __init__(self, product_file="products.csv"):
         """
@@ -176,6 +177,7 @@ class ProductHandler:
                     "enabled": True,
                 },
             }
+            self.max_value_cents = 100
             self.save_products()
             return
 
@@ -188,6 +190,8 @@ class ProductHandler:
                 slot = row[0].strip().upper()
                 name = row[1].strip()
                 price_cents = int(round(float(row[2]) * 100))
+                if price_cents > self.max_value_cents:
+                    self.max_value_cents = ((price_cents + 99) // 100) * 100
                 quantity = int(row[3])
 
                 enabled = True
