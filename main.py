@@ -33,7 +33,7 @@ WIDTH = 60
 INNER = WIDTH - 2
 
 ADMIN_PASSWORD = os.environ.get("VENDING_ADMIN_PASSWORD", "admin")
-
+admin_mode = False
 
 def fmt_money(cents):
     return f"${cents / 100:,.2f}"
@@ -237,7 +237,10 @@ def draw_products(ph, stagger_rows=False):
         else:
             status = f"[{p['quantity']} left]"
         line = f"  {slot}: {name}  {dollars}  {status}"
-        print(row_single(line))
+        if admin_mode == True:
+            print(row_single(line))
+        elif status != "[DISABLED]":
+            print(row_single(line))
         if stagger_rows:
             _flush()
             micro_sleep(STAGGER * 0.85)
@@ -317,9 +320,14 @@ def run_vend_flow(mh, ph, slot):
     """Same flow as VendingMachine.vend_product (repo version), called from UI only."""
     balance = mh.get_balance()
     price = ph.get_price(slot)
-    if price is None:
+    if price is None or not ph.get_product(slot).get("enabled", False):
         print("Invalid selection")
         return
+    if mh.needs_exact_change():
+        if balance > price:
+            print("Machine cannot return change.")
+            print("Please make another selection or use coin return.")
+            return
     if balance >= price:
         vend_success = False
         vend_product_dots(6)
@@ -358,11 +366,10 @@ def run_select_product(mh, ph):
 
 
 def run_coin_return(mh, ph):
-    clear_screen()
-    draw_main_screen(mh, ph)
+    #clear_screen()
+    #draw_main_screen(mh, ph)
     spin_line("Opening coin return", 9)
     balance = mh.get_balance()
-    print("Cancelling transaction.")
     dot_line("Counting coins", 3)
     print(f"Returning {fmt_money(balance)}")
     spin_line("Returning", 6)
@@ -384,47 +391,151 @@ def run_admin(mh, ph):
         pause()
         return
     spin_line("Welcome admin", 8)
-    admin = AdminHandler()
+    # admin = AdminHandler(mh, ph)
     while True:
         clear_screen()
-        draw_header(mh, stagger=True)
-        draw_exact_banner(mh, stagger=True)
+        draw_main_screen(mh, ph)
+        #draw_header(mh, stagger=True)
+        #draw_exact_banner(mh, stagger=True)
+        #draw_products()
         print()
         typewrite(" ADMIN MENU")
         reveal_print_lines(
             (
-                " [1] Change Product Price",
-                " [2] Enable/Disable Slot",
-                " [3] Restock Product",
-                " [4] View Reports",
-                " [5] Toggle Exact Change Mode",
-                " [0] Exit Admin Mode",
+                " [1] Restock Product",
+                " [2] View Reports",
+                " [3] Toggle Exact Change Mode",
+                " [4] Enable/Disable Slot",
+                " [5] Change Product Price",
+                " [6] Change Product Name",
+                " [0] Exit Admin Mode"
             )
         )
         choice = prompt_int(
             "\nEnter choice: ",
             0,
-            5,
-            "✗ Invalid choice - please enter a number between 0 and 5",
+            6,
+            "✗ Invalid choice - please enter a number between 0 and 6",
         )
         if choice == 0:
             break
-        if choice == 1:
+        
+        elif choice == 1:
+            slot = input("Slot to restock (e.g. A1): ").strip().upper()
+            if not re.match(r"^[A-Z]\d+$", slot):
+                print(err("✗ Invalid slot selection"))
+                pause()
+                continue
+            if ph.get_product(slot) is None:
+                print(err("✗ Invalid slot selection"))
+                pause()
+                continue
+            print(f"Restocking item at {slot}: {ph.get_name(slot)}")
+            current_qty = ph.get_product(slot)["quantity"]
+            print(f"Current reported quantity: {current_qty}")
+            print("New quantity: ", end="")
+            raw = input().strip()
+            if raw == "":
+                print("Nothing entered. Quantity unchanged.")
+                pause()
+                continue
+            else:
+                try:
+                    qty = int(raw)
+                except ValueError:
+                    print(err("✗ Invalid quantity"))
+                    pause()
+                    continue
+            try:
+                ph.set_qty(slot, qty)
+            except ValueError as e:
+                print(err(f"✗ {e}"))
+                pause()
+                continue
+            dot_line("Restocking", 3)
+            print(ok("✓ Product restocked successfully"))
+            mini_celebrate(3)
+            pause()
+
+        elif choice == 2:
+            clear_screen()
+            spin_line("Crunching numbers", 10)
+            prev_days = 30
+            report, best_sellers, worst_sellers = ph.generate_sales_report(days=prev_days)
+            if report:
+                print(f"\n=== SALES REPORT FOR LAST {prev_days} DAYS ===")
+                print(f"Total items sold: {sum(item['units_sold'] for item in report.values())}")
+                print(f"Total revenue: ${sum(item['revenue'] for item in report.values()):.2f}")
+
+                print("\n--- Best Sellers ---")
+                for name, data in best_sellers:
+                    print(f"{name}: {data['units_sold']} sold (${data['revenue']:.2f})")
+
+                print("\n--- Worst Sellers ---")
+                for name, data in worst_sellers:
+                    print(f"{name}: {data['units_sold']} sold (${data['revenue']:.2f})")
+
+                print("\n--- Full Breakdown ---")
+                for name, data in report.items():
+                    print(f"{name}: {data['units_sold']} sold, ${data['revenue']:.2f} revenue")                
+            else:
+                print(
+                    hi(
+                        " (No report text yet — generate_sales_report is a stub.) "
+                    )
+                )
+            pause()
+
+        elif choice == 3:
+            spin_line("Toggling mode", 7)
+            mh.set_exact_change(not mh.needs_exact_change())
+            print(ok("✓ Exact change mode toggled"))
+            mini_celebrate(3)
+            pause()
+
+        elif choice == 4:
+            slot = input("Slot to toggle (e.g. B1): ").strip().upper()
+            if not re.match(r"^[A-Z]\d+$", slot):
+                print(err("✗ Invalid slot selection"))
+                pause()
+                continue
+            prod = ph.get_product(slot)
+            if prod is None:
+                print(err("✗ Invalid slot selection"))
+                pause()
+                continue
+            if prod.get("enabled", True):
+                ph.disable_slot(slot)
+            else:
+                ph.enable_slot(slot)
+            spin_line("Updating slot", 7)
+            print(ok("✓ Slot status updated"))
+            mini_celebrate(3)
+            pause()
+
+        elif choice == 5:
             slot = input("Slot (e.g. A1): ").strip().upper()
             if not re.match(r"^[A-Z]\d+$", slot):
                 print(err("✗ Invalid slot selection - format should be A1, B2, etc."))
                 pause()
                 continue
-            raw_price = input("New price in dollars (quarter increments, e.g. 1.50): ").strip()
+            old = ph.get_price(slot)
+            if old is None:
+                print(err("✗ Invalid slot selection"))
+                pause()
+                continue
+            current_price = fmt_money(ph.get_price(slot))
+            print(f"Current price for {ph.get_name(slot)}: {current_price}")
+            print("New price in dollars (quarter increments, e.g. 1.50): ", end="")
+            raw_price = input().strip()
+            if raw_price == "":
+                print("Nothing entered. Price unchanged.")
+                pause()
+                continue
             try:
                 new_cents = parse_price_to_cents(raw_price)
             except ValueError:
                 print(err("✗ Price must be a valid decimal number"))
-                pause()
-                continue
-            old = ph.get_price(slot)
-            if old is None:
-                print(err("✗ Invalid slot selection"))
                 pause()
                 continue
             try:
@@ -445,27 +556,9 @@ def run_admin(mh, ph):
             print(ok("✓ Price updated successfully"))
             mini_celebrate(3)
             pause()
-        elif choice == 2:
-            slot = input("Slot to toggle (e.g. B1): ").strip().upper()
-            if not re.match(r"^[A-Z]\d+$", slot):
-                print(err("✗ Invalid slot selection"))
-                pause()
-                continue
-            prod = ph.get_product(slot)
-            if prod is None:
-                print(err("✗ Invalid slot selection"))
-                pause()
-                continue
-            if prod.get("enabled", True):
-                ph.disable_slot(slot)
-            else:
-                ph.enable_slot(slot)
-            spin_line("Updating slot", 7)
-            print(ok("✓ Slot status updated"))
-            mini_celebrate(3)
-            pause()
-        elif choice == 3:
-            slot = input("Slot to restock (e.g. A1): ").strip().upper()
+
+        elif choice == 6:
+            slot = input("Slot to rename (e.g. A1): ").strip().upper()
             if not re.match(r"^[A-Z]\d+$", slot):
                 print(err("✗ Invalid slot selection"))
                 pause()
@@ -474,44 +567,23 @@ def run_admin(mh, ph):
                 print(err("✗ Invalid slot selection"))
                 pause()
                 continue
-            try:
-                qty = int(input("New quantity: ").strip())
-            except ValueError:
-                print(err("✗ Invalid quantity"))
+            print(f"Current name: {ph.get_name(slot)}")
+            print("New name: ", end="")
+            name = input().strip()
+            if name == "":
+                print("Nothing entered. Name unchanged.")
                 pause()
                 continue
-            try:
-                ph.set_qty(slot, qty)
-            except ValueError as e:
-                print(err(f"✗ {e}"))
-                pause()
-                continue
-            dot_line("Restocking", 3)
-            print(ok("✓ Product restocked successfully"))
+            ph.set_name(slot, name)
+            dot_line("Renaming", 3)
+            print(ok("✓ Product renamed successfully"))
             mini_celebrate(3)
             pause()
-        elif choice == 4:
-            clear_screen()
-            spin_line("Crunching numbers", 10)
-            report = admin.generate_report()
-            if report:
-                print(report)
-            else:
-                print(
-                    hi(
-                        " (No report text yet — AdminHandler.generate_report is a stub.) "
-                    )
-                )
-            pause()
-        elif choice == 5:
-            spin_line("Toggling mode", 7)
-            mh.set_exact_change(not mh.needs_exact_change())
-            print(ok("✓ Exact change mode toggled"))
-            mini_celebrate(3)
-            pause()
+
 
 
 def console_ui():
+    global admin_mode
     if not HAS_COLOR:
         print(
             "Install 'colorama' for colored output: pip install colorama\n"
@@ -538,34 +610,56 @@ def console_ui():
         typewrite(" MAIN MENU")
         reveal_print_lines(
             (
-                " [1] Insert Coin",
-                " [2] Select Product",
-                " [3] Coin Return",
-                " [4] Admin Login",
+                " [1] Insert Quarter (0.25)",
+                " [2] Insert Dollar (1.00)",
+                " [3] Select Product",
+                " [4] Coin Return",
+                " [5] Admin Login",
                 " [0] Exit",
             )
         )
         choice = prompt_int(
             "\nEnter choice: ",
             0,
-            4,
-            "✗ Invalid choice - please enter a number between 0 and 4",
+            5,
+            "✗ Invalid choice - please enter a number between 0 and 5",
         )
         if choice == 0:
-            clear_screen()
+            #clear_screen()
             dot_line("Shutting down", 3)
             spin_line("Bye", 6)
             print(ok(" Goodbye — thanks for visiting. "))
             micro_sleep(0.35)
             break
         if choice == 1:
-            run_insert_coins(mh, ph)
+            spin_line("Taking coin", 7)
+            if mh.insert_coin(25, MAX_INSERT_CENTS):
+                print(f"Balance:{fmt_money(mh.get_balance())}")
+                dot_line("Crediting", 3)
+                print(ok("✓ Coin inserted: $0.25 added to balance"))
+                mini_celebrate(4)
+            else:
+                print(err("✗ Maximum balance reached"))
+            pause()
         elif choice == 2:
-            run_select_product(mh, ph)
+            spin_line("Taking coin", 7)
+            if mh.insert_coin(100, MAX_INSERT_CENTS):
+                print(f"Balance:{fmt_money(mh.get_balance())}")
+                dot_line("Crediting", 3)
+                print(ok("✓ Coin inserted: $1.00 added to balance"))
+                mini_celebrate(4)
+            else:
+                print(err("✗ Maximum balance reached"))
+            pause()
+
         elif choice == 3:
-            run_coin_return(mh, ph)
+            run_select_product(mh, ph)
         elif choice == 4:
+            run_coin_return(mh, ph)
+        elif choice == 5:
+            admin_mode = True
             run_admin(mh, ph)
+            admin_mode = False
 
 
 def main():

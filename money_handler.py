@@ -38,8 +38,8 @@ class MoneyHandler:
         self.hoppers[value_cents] = self.hoppers.get(value_cents, 0) + 1
         self.save_hoppers()
 
-        if self._can_make_any_change():
-            self.exact_change = False
+        if not self._can_make_any_change():
+            self.exact_change = True
 
         return True
 
@@ -117,6 +117,8 @@ class MoneyHandler:
         except (json.JSONDecodeError, OSError, ValueError):
             self.hoppers = {100: 10, 25: 20}
             self.save_hoppers()
+        if not self._can_make_any_change():
+            self.set_exact_change(True)
 
     def save_hoppers(self):
         """

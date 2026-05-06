@@ -1,3 +1,9 @@
-A1,Chips,1.50,3,True
-A2,Candy,0.75,9,True
-B1,Water,1.00,8,True
+A1,Chips,1.50,5,True
+A2,Candy,0.75,8,True
+A3,-,0.00,0,False
+B1,Water,1.00,4,True
+B2,-,0.00,0,False
+B3,-,0.00,0,False
+C1,-,0.00,0,False
+C2,-,0.00,0,False
+C3,Gum,0.50,19,False
