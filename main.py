@@ -275,6 +275,9 @@ def pause(msg=None):
 
 
 def run_insert_coins(mh, ph):
+    """
+    This method is now bypassed by having coins inserted from main menu.
+    """
     while True:
         clear_screen()
         draw_main_screen(mh, ph)
@@ -328,6 +331,11 @@ def run_vend_flow(mh, ph, slot):
             print("Machine cannot return change.")
             print("Please make another selection or use coin return.")
             return
+    if balance > price:
+        if not mh.has_change_for(price):
+            print("Machine cannot make change for this purchase.")
+            print("Please make another selection or use coin return.")
+            return
     if balance >= price:
         vend_success = False
         vend_product_dots(6)
@@ -344,7 +352,16 @@ def run_vend_flow(mh, ph, slot):
             if balance > price:
                 dot_line("Dispensing change", 3)
             change = mh.make_change(price)
-            print(f"Change due:{change}")
+            coin_words = {100:"dollar coin", 25:"quarter", 10:"dime", 5:"nickel"}
+            parts = []
+            for coin, qty in change.items():
+                if qty > 0:
+                    word = coin_words[coin]
+                    if qty != 1:
+                        word += "s"
+                    parts.append(f"{qty} {word}")
+            due = ", ".join(parts)
+            print(f"Change due: {due}")
             print("Thank you.")
             mini_celebrate(5)
     else:

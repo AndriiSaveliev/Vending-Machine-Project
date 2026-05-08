@@ -49,6 +49,32 @@ class MoneyHandler:
         """
         return self.balance_cents
 
+    def has_change_for(self, price_cents):
+        """
+        Does the same as make_change, calculated from current balance,
+        but returns False if this change cannot be made. This does not update
+        any hoppers.
+        """
+        change_due = self.balance_cents - price_cents
+        coins_returned = {100: 0, 25: 0}
+
+        remaining = change_due
+
+        # make copy of current hoppers
+        test_hoppers = self.hoppers
+
+        for coin_value in (100, 25):
+            while remaining >= coin_value and test_hoppers.get(coin_value, 0) > 0:
+                remaining -= coin_value
+                test_hoppers[coin_value] -= 1
+                coins_returned[coin_value] += 1
+
+        if remaining != 0:
+            return False  # cannot make change
+        else:
+            return True   # can make change
+
+
     def make_change(self, price_cents):
         """
         Calculates change due from balance minus price.
