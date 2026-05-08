@@ -415,6 +415,10 @@ def run_admin(mh, ph):
         #draw_header(mh, stagger=True)
         #draw_exact_banner(mh, stagger=True)
         #draw_products()
+        counts = mh.get_hopper_counts()
+        hopper_alert = ""
+        if any(q < 20 or q > 500 for q in counts.values()):
+            hopper_alert = " ! "
         print()
         typewrite(" ADMIN MENU")
         reveal_print_lines(
@@ -425,7 +429,7 @@ def run_admin(mh, ph):
                 " [4] Enable/Disable Slot",
                 " [5] Change Product Price",
                 " [6] Change Product Name",
-                " [7] Show coin hopper counts",
+                f" [7] Show coin hopper counts{hopper_alert}",
                 " [0] Exit Admin Mode"
             )
         )
