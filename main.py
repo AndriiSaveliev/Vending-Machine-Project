@@ -425,14 +425,15 @@ def run_admin(mh, ph):
                 " [4] Enable/Disable Slot",
                 " [5] Change Product Price",
                 " [6] Change Product Name",
+                " [7] Show coin hopper counts",
                 " [0] Exit Admin Mode"
             )
         )
         choice = prompt_int(
             "\nEnter choice: ",
             0,
-            6,
-            "✗ Invalid choice - please enter a number between 0 and 6",
+            7,
+            "✗ Invalid choice - please enter a number between 0 and 7",
         )
         if choice == 0:
             break
@@ -450,7 +451,7 @@ def run_admin(mh, ph):
             print(f"Restocking item at {slot}: {ph.get_name(slot)}")
             current_qty = ph.get_product(slot)["quantity"]
             print(f"Current reported quantity: {current_qty}")
-            print("New quantity: ", end="")
+            print("New quantity (leave blank to cancel): ", end="")
             raw = input().strip()
             if raw == "":
                 print("Nothing entered. Quantity unchanged.")
@@ -543,7 +544,7 @@ def run_admin(mh, ph):
                 continue
             current_price = fmt_money(ph.get_price(slot))
             print(f"Current price for {ph.get_name(slot)}: {current_price}")
-            print("New price in dollars (quarter increments, e.g. 1.50): ", end="")
+            print("New price in dollars (quarter increments, e.g. 1.50. Leave blank to cancel.): ", end="")
             raw_price = input().strip()
             if raw_price == "":
                 print("Nothing entered. Price unchanged.")
@@ -585,7 +586,7 @@ def run_admin(mh, ph):
                 pause()
                 continue
             print(f"Current name: {ph.get_name(slot)}")
-            print("New name: ", end="")
+            print("New name (leave blank to cancel): ", end="")
             name = input().strip()
             if name == "":
                 print("Nothing entered. Name unchanged.")
@@ -595,6 +596,18 @@ def run_admin(mh, ph):
             dot_line("Renaming", 3)
             print(ok("✓ Product renamed successfully"))
             mini_celebrate(3)
+            pause()
+
+        elif choice == 7:
+            counts = mh.get_hopper_counts()
+            value = 0
+            for c, q in counts.items():
+                warning = ""
+                if q < 20: warning = "- Warning: Low quantity"
+                if q > 500: warning = "- Warning: Hopper over capacity"
+                print(f"{fmt_money(c)}: {q} -> {fmt_money(c*q)} {warning}")
+                value += c * q
+            print(f"Total: {fmt_money(value)}")
             pause()
 
 
