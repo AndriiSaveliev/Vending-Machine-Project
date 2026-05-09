@@ -720,12 +720,34 @@ def console_ui():
                 " [0] Exit",
             )
         )
+        low = 0
+        high = 5
+        choice = None
+        while True:
+            raw = input("\nEnter choice: ")
+            # if not a numbered menu option, attempt to vend using slot.
+            if not raw.isdigit():
+                run_vend_flow(mh, ph, raw)
+                pause()
+                break
+            else:
+                try:
+                    choice = int(raw)
+                except ValueError:
+                    print(err(f"✗ Invalid choice - please enter a number between {low} and {high}"))
+                    continue
+                if 0 <= choice <= 5:
+                    break
+                print(err(f"✗ Invalid choice - please enter a number between {low} and {high}"))
+
+        """
         choice = prompt_int(
             "\nEnter choice: ",
             0,
             5,
             "✗ Invalid choice - please enter a number between 0 and 5",
         )
+        """
         if choice == 0:
             #clear_screen()
             dot_line("Shutting down", 3)
