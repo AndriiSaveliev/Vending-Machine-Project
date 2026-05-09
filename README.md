@@ -11,7 +11,7 @@
 | Name | Role |
 |------|------|
 | Paul Renaud | Project Lead and System Integration |
-| Andrii Saveliev | System Architecture and Backend Development |
+| Andrii Saveliev | System Architecture |
 | Gueswende Kafando | UI Design and Testing |
 
 ---
