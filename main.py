@@ -736,7 +736,7 @@ def console_ui():
                 except ValueError:
                     print(err(f"✗ Invalid choice - please enter a number between {low} and {high}"))
                     continue
-                if 0 <= choice <= 5:
+                if low <= choice <= high:
                     break
                 print(err(f"✗ Invalid choice - please enter a number between {low} and {high}"))
 
