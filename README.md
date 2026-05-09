@@ -77,7 +77,6 @@ main.py
 vending_machine.py
 money_handler.py
 product_handler.py
-admin_handler.py
 test_handlers.py
 products.csv
 hoppers.json
