@@ -430,14 +430,15 @@ def run_admin(mh, ph):
                 " [5] Change Product Price",
                 " [6] Change Product Name",
                 f" [7] Show coin hopper counts{hopper_alert}",
+                " [8] Reload product data from file",
                 " [0] Exit Admin Mode"
             )
         )
         choice = prompt_int(
             "\nEnter choice: ",
             0,
-            7,
-            "✗ Invalid choice - please enter a number between 0 and 7",
+            8,
+            "✗ Invalid choice - please enter a number between 0 and 8",
         )
         if choice == 0:
             break
@@ -452,22 +453,41 @@ def run_admin(mh, ph):
                 print(err("✗ Invalid slot selection"))
                 pause()
                 continue
-            print(f"Restocking item at {slot}: {ph.get_name(slot)}")
+            print("\nEnter the new quantity, or prefix with + or - to change by qty amount.")
+            print("Leave blank to cancel.")
+            print("  Example 1: 10   Set qty to 10.")
+            print("  Example 2: +5   Add 5 to current quantity.")
+            print("  Example 3: -2   Subtract 2 from current quantity.")
+
+            print(f"\nRestocking item at {slot}: {ph.get_name(slot)}")
             current_qty = ph.get_product(slot)["quantity"]
             print(f"Current reported quantity: {current_qty}")
-            print("New quantity (leave blank to cancel): ", end="")
+            print("New quantity: ", end="")
             raw = input().strip()
             if raw == "":
                 print("Nothing entered. Quantity unchanged.")
                 pause()
                 continue
             else:
+                # if qty starts with a + or -, change existing quantity by value
+                delta = ""
+                if raw[:1] == "+" or raw[:1] == "-":
+                    delta = raw[:1]  # get first char
+                    raw = raw[1:]    # everything else
+                if not raw.isdigit():  # prevents a double -- sign from sneaking through
+                    print(err("✗ Invalid quantity"))
+                    pause()
+                    continue                    
                 try:
                     qty = int(raw)
                 except ValueError:
                     print(err("✗ Invalid quantity"))
                     pause()
-                    continue
+                    continue            
+            if delta == "+":
+                qty = current_qty + qty
+            if delta == "-":
+                qty = current_qty - qty
             try:
                 ph.set_qty(slot, qty)
             except ValueError as e:
@@ -475,16 +495,42 @@ def run_admin(mh, ph):
                 pause()
                 continue
             dot_line("Restocking", 3)
-            print(ok("✓ Product restocked successfully"))
+            print(ok(f"✓ Product restocked successfully to {qty}"))
             mini_celebrate(3)
             pause()
 
         elif choice == 2:
             clear_screen()
-            spin_line("Crunching numbers", 10)
+            typewrite(" REPORT MENU")
+            reveal_print_lines(
+                (
+                    " [1] Previous 7 days",
+                    " [2] Previous 30 days",
+                    " [3] All time",
+                    " [0] Exit reports"
+                )
+            )
+            report_choice = prompt_int(
+                "\nEnter choice: ",
+                0,
+                3,
+                "✗ Invalid choice - please enter a number between 0 and 3",
+            )
             prev_days = 30
+            if report_choice == 0:
+                break
+            
+            elif report_choice == 1:
+                prev_days = 7
+            elif report_choice == 2:
+                prev_days = 30
+            elif report_choice == 3:
+                prev_days = None
+
+            spin_line("Crunching numbers", 10)
             report, best_sellers, worst_sellers = ph.generate_sales_report(days=prev_days)
             if report:
+                if prev_days == None: prev_days = "ALL"
                 print(f"\n=== SALES REPORT FOR LAST {prev_days} DAYS ===")
                 print(f"Total items sold: {sum(item['units_sold'] for item in report.values())}")
                 print(f"Total revenue: ${sum(item['revenue'] for item in report.values()):.2f}")
@@ -575,7 +621,7 @@ def run_admin(mh, ph):
                 pause()
                 continue
             dot_line("Saving price", 3)
-            print(ok("✓ Price updated successfully"))
+            print(ok(f"✓ Price updated successfully to {fmt_money(new_cents)}"))
             mini_celebrate(3)
             pause()
 
@@ -603,6 +649,7 @@ def run_admin(mh, ph):
             pause()
 
         elif choice == 7:
+            print("\n--- Coin Hopper Counts ---")
             counts = mh.get_hopper_counts()
             value = 0
             for c, q in counts.items():
@@ -613,6 +660,27 @@ def run_admin(mh, ph):
                 value += c * q
             print(f"Total: {fmt_money(value)}")
             pause()
+
+        elif choice == 8:
+            print("\nThis will reload all product data from the file.")
+            print("Use this if you have made external updates.")
+            print("Refresh from file now?")
+            reveal_print_lines(
+                (
+                    " [1] Reload from file",
+                    " [0] Cancel"
+                )
+            )
+            reload_choice = prompt_int(
+                "\nEnter choice: ",
+                0,
+                1,
+                "✗ Invalid choice - please enter a number between 0 and 1",
+            )
+            if reload_choice == 0:
+                break
+            if reload_choice == 1:
+                ph.load_products()
 
 
 
